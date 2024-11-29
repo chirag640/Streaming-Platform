@@ -14,39 +14,48 @@ export default function MediaPlayer({ fileUrl, roomId }) {
     const port = window.location.port || '3000';
     const socketUrl = `http://localhost:${port}`;
     
-    socketRef.current = io(socketUrl, {
-      path: '/socket.io',
-      transports: ['websocket', 'polling'],
-      reconnectionAttempts: 5,
-      reconnectionDelay: 1000
-    });
-
+    socketRef.current = io(socketUrl);
     socketRef.current.emit('join-stream', roomId);
     
     socketRef.current.on('host-status', (status) => {
       setIsHost(status);
     });
-
-    socketRef.current.on('sync-request', () => {
+  
+    socketRef.current.on('request-sync', (targetSocketId) => {
       if (isHost && videoRef.current) {
-        socketRef.current.emit('sync-response', {
+        socketRef.current.emit('sync-response', targetSocketId, {
           currentTime: videoRef.current.currentTime,
           playing: !videoRef.current.paused
         });
       }
     });
-
-    socketRef.current.on('sync-playback', (data) => {
+  
+    socketRef.current.on('mediaControl', (action) => {
       if (!videoRef.current || isHost) return;
-
-      videoRef.current.currentTime = data.currentTime;
-      if (data.playing) {
+  
+      if (action === 'play') {
         videoRef.current.play().catch(console.error);
-      } else {
+      } else if (action === 'pause') {
         videoRef.current.pause();
+      } else if (action.type === 'seek') {
+        videoRef.current.currentTime = action.time;
       }
     });
-
+  
+    socketRef.current.on('sync-playback', (data) => {
+      if (!videoRef.current || isHost) return;
+      
+      const timeDiff = Math.abs(videoRef.current.currentTime - data.currentTime);
+      if (timeDiff > 0.5) {
+        videoRef.current.currentTime = data.currentTime;
+        if (data.playing) {
+          videoRef.current.play().catch(console.error);
+        } else {
+          videoRef.current.pause();
+        }
+      }
+    });
+  
     return () => {
       if (socketRef.current) {
         socketRef.current.disconnect();
@@ -54,29 +63,31 @@ export default function MediaPlayer({ fileUrl, roomId }) {
     };
   }, [roomId, isHost]);
 
+  
   const handleTimeUpdate = () => {
     if (isHost && socketRef.current) {
-      socketRef.current.emit('playback-progress', {
-        currentTime: videoRef.current.currentTime
+      socketRef.current.emit('playback-progress', roomId, {
+        currentTime: videoRef.current.currentTime,
+        playing: !videoRef.current.paused
       });
     }
   };
-
+  
   const handlePlay = () => {
-    if (socketRef.current) {
-      socketRef.current.emit('mediaControl', 'play');
+    if (isHost && socketRef.current) {
+      socketRef.current.emit('mediaControl', roomId, 'play');
     }
   };
-
+  
   const handlePause = () => {
-    if (socketRef.current) {
-      socketRef.current.emit('mediaControl', 'pause');
+    if (isHost && socketRef.current) {
+      socketRef.current.emit('mediaControl', roomId, 'pause');
     }
   };
-
+  
   const handleSeek = () => {
-    if (socketRef.current && videoRef.current) {
-      socketRef.current.emit('mediaControl', {
+    if (isHost && socketRef.current && videoRef.current) {
+      socketRef.current.emit('mediaControl', roomId, {
         type: 'seek',
         time: videoRef.current.currentTime
       });

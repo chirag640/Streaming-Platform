@@ -3,10 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "scripts": {
-    "dev": "next dev",
+"scripts": {
+  "dev": "node src/server.js",
     "build": "next build",
-    "start": "next start",
+    "start": "NODE_ENV=production node src/server.js",
     "lint": "next lint"
   },
   "dependencies": {

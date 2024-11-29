@@ -4,45 +4,25 @@ import { Server } from 'socket.io';
 export const initSocket = (server) => {
   const io = new Server(server, {
     cors: {
-      origin: true,
-      methods: ["GET", "POST"],
-      credentials: true
+      origin: '*',
+      methods: ['GET', 'POST'],
     },
-    path: '/socket.io'
   });
 
-  const rooms = new Map();
-
   io.on('connection', (socket) => {
-    socket.on('join-stream', (roomId) => {
+    console.log('New client connected:', socket.id);
+
+    socket.on('join-room', (roomId, userId) => {
       socket.join(roomId);
-      
-      if (!rooms.has(roomId)) {
-        rooms.set(roomId, socket.id);
-        socket.emit('host-status', true);
-      } else {
-        socket.emit('host-status', false);
-        socket.emit('sync-request');
-      }
-    });
+      socket.to(roomId).emit('user-connected', userId);
 
-    socket.on('sync-response', (data) => {
-      socket.to(Array.from(socket.rooms)[1]).emit('sync-playback', data);
-    });
-
-    socket.on('playback-progress', (data) => {
-      socket.to(Array.from(socket.rooms)[1]).emit('sync-playback', {
-        ...data,
-        playing: true
+      socket.on('disconnect', () => {
+        socket.to(roomId).emit('user-disconnected', userId);
       });
     });
 
-    socket.on('disconnect', () => {
-      rooms.forEach((hostId, roomId) => {
-        if (hostId === socket.id) {
-          rooms.delete(roomId);
-        }
-      });
+    socket.on('send-message', (roomId, message) => {
+      socket.to(roomId).emit('receive-message', message);
     });
   });
 
