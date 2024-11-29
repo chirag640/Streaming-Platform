@@ -2,6 +2,7 @@ import { createServer } from 'http';
 import { parse } from 'url';
 import next from 'next';
 import { Server } from 'socket.io';
+import { PeerServer } from 'peer';
 
 const dev = process.env.NODE_ENV !== 'production';
 const app = next({ dev });
@@ -13,6 +14,9 @@ app.prepare().then(() => {
     handle(req, res, parsedUrl);
   });
 
+  // Initialize PeerJS Server
+  PeerServer({ port: 9000, path: '/myapp' });
+
   const io = new Server(server, {
     cors: {
       origin: '*',
@@ -21,44 +25,43 @@ app.prepare().then(() => {
   });
 
   io.on('connection', (socket) => {
+    let currentRoom = null;
+
     socket.on('join-stream', (roomId) => {
+      currentRoom = roomId;
       socket.join(roomId);
+      const room = io.sockets.adapter.rooms.get(roomId);
+      const isHost = room.size === 1;
       
-      // Make first user the host
-      const roomSize = io.sockets.adapter.rooms.get(roomId)?.size || 0;
-      const isHost = roomSize === 1;
       socket.emit('host-status', isHost);
       
       if (!isHost) {
-        // Request current playback state from host
+        // Request current state from host
         socket.to(roomId).emit('request-sync', socket.id);
       }
     });
 
-    socket.on('sync-response', (targetSocketId, data) => {
-      socket.to(targetSocketId).emit('sync-playback', data);
-    });
-
     socket.on('mediaControl', (roomId, action) => {
+      // Add server timestamp to help with synchronization
+      action.serverTime = Date.now();
       socket.to(roomId).emit('mediaControl', action);
     });
 
     socket.on('playback-progress', (roomId, data) => {
+      // Add server timestamp and broadcast to all clients except sender
+      data.serverTime = Date.now();
       socket.to(roomId).emit('sync-playback', data);
     });
 
-    // Handle video call room joining
-    socket.on('join-room', (roomId, userId) => {
-      socket.join(roomId);
-      socket.to(roomId).emit('user-connected', userId);
-      
-      socket.on('disconnect', () => {
-        socket.to(roomId).emit('user-disconnected', userId);
-      });
+    socket.on('disconnect', () => {
+      if (currentRoom) {
+        socket.to(currentRoom).emit('user-disconnected', socket.id);
+      }
     });
   });
 
   server.listen(3000, () => {
     console.log('Server running on http://localhost:3000');
+    console.log('PeerJS server running on port 9000');
   });
 });

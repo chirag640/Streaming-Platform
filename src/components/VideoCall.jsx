@@ -8,18 +8,24 @@ import Peer from 'peerjs';
 export default function VideoCall({ roomId }) {
   const userVideoRef = useRef();
   const peersRef = useRef({});
-  const [peers, setPeers] = useState({});
+  const [peerVideos, setPeerVideos] = useState({});
   const socketRef = useRef();
   const peerRef = useRef();
 
   useEffect(() => {
     const port = window.location.port || '3000';
     socketRef.current = io(`http://localhost:${port}`);
-    peerRef.current = new Peer();
+    peerRef.current = new Peer(undefined, {
+      host: 'localhost',
+      port: 9000,
+      path: '/myapp'
+    });
 
     navigator.mediaDevices.getUserMedia({ video: true, audio: true })
       .then((stream) => {
-        userVideoRef.current.srcObject = stream;
+        if (userVideoRef.current) {
+          userVideoRef.current.srcObject = stream;
+        }
 
         peerRef.current.on('open', (userId) => {
           socketRef.current.emit('join-room', roomId, userId);
@@ -27,23 +33,31 @@ export default function VideoCall({ roomId }) {
 
         peerRef.current.on('call', (call) => {
           call.answer(stream);
-          const video = document.createElement('video');
-          
-          call.on('stream', (userVideoStream) => {
-            addVideoStream(call.peer, video, userVideoStream);
+          call.on('stream', (remoteStream) => {
+            setPeerVideos(prev => ({
+              ...prev,
+              [call.peer]: remoteStream
+            }));
           });
         });
 
         socketRef.current.on('user-connected', (userId) => {
-          connectToNewUser(userId, stream);
+          const call = peerRef.current.call(userId, stream);
+          call.on('stream', (remoteStream) => {
+            setPeerVideos(prev => ({
+              ...prev,
+              [userId]: remoteStream
+            }));
+          });
+          peersRef.current[userId] = call;
         });
 
         socketRef.current.on('user-disconnected', (userId) => {
           if (peersRef.current[userId]) {
             peersRef.current[userId].close();
           }
-          setPeers(prevPeers => {
-            const newPeers = { ...prevPeers };
+          setPeerVideos(prev => {
+            const newPeers = { ...prev };
             delete newPeers[userId];
             return newPeers;
           });
@@ -52,62 +66,34 @@ export default function VideoCall({ roomId }) {
 
     return () => {
       Object.values(peersRef.current).forEach(call => call.close());
-      socketRef.current.disconnect();
-      peerRef.current.destroy();
+      socketRef.current?.disconnect();
+      peerRef.current?.destroy();
     };
   }, [roomId]);
 
-  function connectToNewUser(userId, stream) {
-    const call = peerRef.current.call(userId, stream);
-    const video = document.createElement('video');
-
-    call.on('stream', (userVideoStream) => {
-      addVideoStream(userId, video, userVideoStream);
-    });
-
-    call.on('close', () => {
-      setPeers(prevPeers => {
-        const newPeers = { ...prevPeers };
-        delete newPeers[userId];
-        return newPeers;
-      });
-    });
-
-    peersRef.current[userId] = call;
-  }
-
-  function addVideoStream(userId, video, stream) {
-    video.srcObject = stream;
-    video.addEventListener('loadedmetadata', () => {
-      video.play();
-    });
-    setPeers(prevPeers => ({
-      ...prevPeers,
-      [userId]: stream
-    }));
-  }
-
   return (
     <div className="grid grid-cols-2 gap-4 w-full">
-      <div className="relative aspect-video">
+      <div className="relative aspect-video bg-gray-900 rounded-lg overflow-hidden">
         <video
           ref={userVideoRef}
           autoPlay
           muted
           playsInline
-          className="w-full h-full object-cover rounded-lg"
+          className="w-full h-full object-cover"
         />
         <div className="absolute bottom-2 left-2 bg-black/50 px-2 py-1 rounded text-white text-sm">
           You
         </div>
       </div>
-      {Object.entries(peers).map(([peerId, stream]) => (
-        <div key={peerId} className="relative aspect-video">
+      {Object.entries(peerVideos).map(([peerId, stream]) => (
+        <div key={peerId} className="relative aspect-video bg-gray-900 rounded-lg overflow-hidden">
           <video
             autoPlay
             playsInline
-            srcObject={stream}
-            className="w-full h-full object-cover rounded-lg"
+            className="w-full h-full object-cover"
+            ref={el => {
+              if (el) el.srcObject = stream;
+            }}
           />
           <div className="absolute bottom-2 left-2 bg-black/50 px-2 py-1 rounded text-white text-sm">
             Peer
