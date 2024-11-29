@@ -1,17 +1,30 @@
+// tailwind.config.js
 /** @type {import('tailwindcss').Config} */
 module.exports = {
   content: [
-    "./src/pages/**/*.{js,ts,jsx,tsx,mdx}",
-    "./src/components/**/*.{js,ts,jsx,tsx,mdx}",
-    "./src/app/**/*.{js,ts,jsx,tsx,mdx}",
+    './src/pages/**/*.{js,jsx}',
+    './src/components/**/*.{js,jsx}',
+    './src/app/**/*.{js,jsx}',
   ],
   theme: {
     extend: {
       colors: {
-        background: "var(--background)",
-        foreground: "var(--foreground)",
+        'ios': {
+          'blue': '#007AFF',
+          'gray': '#8E8E93',
+          'background': '#F2F2F7',
+          'card': '#FFFFFF',
+          'text': '#1C1C1E'
+        }
       },
+      boxShadow: {
+        'ios': '0 2px 10px rgba(0, 0, 0, 0.05)',
+        'ios-hover': '0 4px 15px rgba(0, 0, 0, 0.1)'
+      },
+      borderRadius: {
+        'ios': '10px'
+      }
     },
   },
   plugins: [],
-};
+}

@@ -2,6 +2,7 @@
   "name": "streaming-app3",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -9,9 +10,14 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "react": "19.0.0-rc-66855b96-20241106",
-    "react-dom": "19.0.0-rc-66855b96-20241106",
-    "next": "15.0.3"
+    "@aws-sdk/client-s3": "^3.354.0",
+    "mongodb": "^5.6.0",
+    "peerjs": "^1.4.7",
+    "react": "^18",
+    "react-dom": "^18",
+    "next": "15.0.3",
+    "socket.io": "^4.6.2",
+    "socket.io-client": "^4.6.2"
   },
   "devDependencies": {
     "postcss": "^8",
