@@ -3,6 +3,10 @@ import { parse } from 'url';
 import next from 'next';
 import { Server } from 'socket.io';
 import { PeerServer } from 'peer';
+import dotenv from 'dotenv';
+
+// Load environment variables
+dotenv.config({ path: '.env.local' });
 
 const dev = process.env.NODE_ENV !== 'production';
 const app = next({ dev });
@@ -10,6 +14,7 @@ const handle = app.getRequestHandler();
 
 const PORT = process.env.PORT || 3000;
 const PEER_PORT = process.env.PEER_PORT || 9000;
+const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || `http://localhost:${PORT}`;
 
 app.prepare().then(() => {
   const server = createServer((req, res) => {
