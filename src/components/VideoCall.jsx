@@ -13,13 +13,15 @@ export default function VideoCall({ roomId }) {
   const peerRef = useRef();
 
   useEffect(() => {
-    const port = window.location.port || '3000';
-    socketRef.current = io(`http://localhost:${port}`);
-    peerRef.current = new Peer(undefined, {
-      host: 'localhost',
-      port: 9000,
-      path: '/myapp'
-    });
+    const socketUrl = process.env.NEXT_PUBLIC_BASE_URL || `http://localhost:${port}`;
+    socketRef.current = io(socketUrl);
+
+   peerRef.current = new Peer(undefined, {
+  host: process.env.NEXT_PUBLIC_BASE_URL || 'localhost',
+  port: process.env.NEXT_PUBLIC_PEER_PORT || 9000,
+  path: '/myapp',
+  secure: process.env.NODE_ENV === 'production'
+});
 
     navigator.mediaDevices.getUserMedia({ video: true, audio: true })
       .then((stream) => {

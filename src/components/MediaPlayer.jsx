@@ -13,9 +13,9 @@ export default function MediaPlayer({ fileUrl, roomId }) {
   const lastUpdateRef = useRef(0);
 
   useEffect(() => {
-    const port = window.location.port || '3000';
-    const socketUrl = `http://localhost:${port}`;
-    socketRef.current = io(socketUrl);
+    const socketUrl = process.env.NEXT_PUBLIC_BASE_URL || `http://localhost:${port}`;
+socketRef.current = io(socketUrl);
+
     
     socketRef.current.emit('join-stream', roomId);
     

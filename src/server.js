@@ -8,18 +8,25 @@ const dev = process.env.NODE_ENV !== 'production';
 const app = next({ dev });
 const handle = app.getRequestHandler();
 
+const PORT = process.env.PORT || 3000;
+const PEER_PORT = process.env.PEER_PORT || 9000;
+
 app.prepare().then(() => {
   const server = createServer((req, res) => {
     const parsedUrl = parse(req.url, true);
     handle(req, res, parsedUrl);
   });
 
-  // Initialize PeerJS Server
-  PeerServer({ port: 9000, path: '/myapp' });
+  // Initialize PeerJS Server with dynamic port
+  PeerServer({ 
+    port: PEER_PORT,
+    path: '/myapp',
+    proxied: true
+  });
 
   const io = new Server(server, {
     cors: {
-      origin: '*',
+      origin: process.env.NEXT_PUBLIC_BASE_URL || '*',
       methods: ['GET', 'POST']
     }
   });
@@ -60,8 +67,8 @@ app.prepare().then(() => {
     });
   });
 
-  server.listen(3000, () => {
-    console.log('Server running on http://localhost:3000');
-    console.log('PeerJS server running on port 9000');
+  server.listen(PORT, () => {
+    console.log(`Server running on http://localhost:${PORT}`);
+    console.log(`PeerJS server running on port ${PEER_PORT}`);
   });
 });
